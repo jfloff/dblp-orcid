@@ -1,12 +1,25 @@
 #!/usr/bin/env python
 import os
+import sys
 import gzip
+import tempfile
+import shutil
 import urllib.request
 from tqdm import tqdm
 from lxml import etree
 from lxml import html
 import pandas as pd
 import datetime
+import argparse
+
+##########################
+# COMMAND LINE
+#
+parser = argparse.ArgumentParser()
+parser.add_argument("--out", action='store_true', default=True, help="Outputs csv to stdout. Useful for redirecting output.", required=False)
+parser.add_argument("--csv", action='store_true', default=False, help="Saves to 'dblp-orcids.csv'", required=False)
+parser.add_argument("--no-download", action='store_true', default=False, help="Does not download DBLP XML files", required=False)
+args = vars(parser.parse_args())
 
 ##########################
 # CONSTANTS
@@ -38,11 +51,12 @@ def progress_bar_hook(t):
     return update_to
 
 # download files
-print("Downloading DBLP XML files...")
-with tqdm(unit='B', unit_scale=True, unit_divisor=1024, miniters=1, desc=DBLP_XML_FILENAME) as t:
-    urllib.request.urlretrieve(DBLP_XML_URL, filename=DBLP_XML_FILENAME,reporthook=progress_bar_hook(t), data=None)
-with tqdm(unit='B', unit_scale=True, unit_divisor=1024, miniters=1, desc=DBLP_DTD_FILENAME) as t:
-    urllib.request.urlretrieve(DBLP_DTD_URL, filename=DBLP_DTD_FILENAME,reporthook=progress_bar_hook(t), data=None)
+if not args['no_download']:
+    print("Downloading DBLP XML files...", file=sys.stderr)
+    with tqdm(unit='B', unit_scale=True, unit_divisor=1024, miniters=1, desc=DBLP_XML_FILENAME) as t:
+        urllib.request.urlretrieve(DBLP_XML_URL, filename=DBLP_XML_FILENAME,reporthook=progress_bar_hook(t), data=None)
+    with tqdm(unit='B', unit_scale=True, unit_divisor=1024, miniters=1, desc=DBLP_DTD_FILENAME) as t:
+        urllib.request.urlretrieve(DBLP_DTD_URL, filename=DBLP_DTD_FILENAME,reporthook=progress_bar_hook(t), data=None)
 
 
 ##########################
@@ -177,29 +191,42 @@ def process_element(element):
     globals()['process_'+element.tag](element)
     counter += 1
     if counter % 100000 == 0:
-        print(str(counter)+ " xml nodes processed.")
-    # if counter == 100000 * 20:
-    #     exit()
+        print(str(counter)+ " xml nodes processed.", file=sys.stderr)
 
 # first parses all the authors with orcids
-print("Started parsing...")
+print("Started parsing...", file=sys.stderr)
 context = etree.iterparse(gzip.GzipFile(DBLP_XML_FILENAME), events=('end','end-ns'), tag=('author','www'), load_dtd=True, dtd_validation=True)
 fast_iter(context,process_element)
 
 # merges info by orcid
 final = info_by_orcid()
-print("Finished parsing!")
+print("Finished parsing!", file=sys.stderr)
 
 # remove files
-os.remove(DBLP_DTD_FILENAME)
-os.remove(DBLP_XML_FILENAME)
-print("Removed DBLP xml files.")
+if not args['no_download']:
+    os.remove(DBLP_DTD_FILENAME)
+    os.remove(DBLP_XML_FILENAME)
+    print("Removed DBLP xml files.", file=sys.stderr)
 
 # export to csv
 df = pd.DataFrame(list(final.values()))
 order = ['orcid','alias','dblp_key','affiliation','researcher_id','google_scholar_id','scopus_id','acm_id','homepage']
 df = df.reindex(columns=order).sort_values('orcid')
-with open(OUTPUT_CSV_FILENAME, 'w') as f:
-    f.write('# PARSED ON ' + datetime.datetime.today().strftime('%Y-%m-%d') + '\n')
-    df.to_csv(f, index=False, encoding='utf-8')
-print("Parsed info saved to: " + OUTPUT_CSV_FILENAME)
+
+tmp_csv_fd = tempfile.NamedTemporaryFile(mode='w', delete=False)
+tmp_csv_fd.write('# PARSED ON ' + datetime.datetime.today().strftime('%Y-%m-%d') + '\n')
+df.to_csv(tmp_csv_fd, index=False, encoding='utf-8')
+tmp_csv_fd.close()
+
+# defaults "cat"s the file
+if args['out']:
+    with open(tmp_csv_fd.name) as f:
+        for line in f: print(line, end="")
+
+# just prints message, file already saved
+if args['csv']:
+    shutil.copy(tmp_csv_fd.name, OUTPUT_CSV_FILENAME)
+    print("Parsed info saved to: " + OUTPUT_CSV_FILENAME, file=sys.stderr)
+
+# delete file
+os.remove(tmp_csv_fd.name)
