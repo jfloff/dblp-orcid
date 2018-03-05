@@ -1,25 +1,19 @@
-FROM python:latest
+FROM jfloff/alpine-python:latest
 LABEL maintainer="jfloff@inesc-id.pt"
 
-WORKDIR /home/dblp-orcid
-
-# install packages
+# install lxml
 RUN set -ex ;\
-    apt-get update && apt-get install -y --no-install-recommends \
-            libxml2-utils \
-            python-lxml \
+    apk add --update --no-cache \
+            g++ \
+            gcc \
+            libxslt-dev \
+            py-lxml\
             ;\
-    rm -rf /var/lib/apt/lists/*
+    rm /var/cache/apk/*
 
-RUN set -ex ;\
-    # install pip packages
-    pip --no-cache-dir install \
-                lxml \
-                requests \
-                pandas \
-                unidecode \
-                orcid \
-                tqdm \
-                ;
+# copy application and run
+WORKDIR /home/dblp-orcids
+COPY . /home/dblp-orcids
+RUN pip --no-cache-dir install -r requirements.pip
 
-CMD /bin/bash
+CMD ./parse.py
