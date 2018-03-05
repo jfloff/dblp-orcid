@@ -1,18 +1,23 @@
 # ORCIDS from DBLP
 
-Parses the [DBLP](dblp.uni-trier.de) XML in order to gather all author info per [ORCID](https://orcid.org/), saving it to a single csv. You can also [download the csv directly from the repo](dblp-orcids.csv).
+Parses the [DBLP](dblp.uni-trier.de) XML in order to gather all author info per [ORCID](https://orcid.org/), saving it to a single csv. You can also download the csv files directly from the repo: [by orcid](by_orcid.csv) or [by alias](by_alias.csv).
 
 
 #### Run
-We use a Docker-based deployment. To run use the following command:
+We use a Docker-based deployment. To run use the following command as an example:
 ```sh
-docker run --rm -ti jfloff/dblp-orcids 1> dblp-orcids.csv
+# export by orcid info
+docker run --rm -ti jfloff/dblp-orcids --out --orcids 1> by_orcid.csv
+# export by alias info
+docker run --rm -ti jfloff/dblp-orcids --out --alias 1> by_alias.csv
 ```
 If you want to run on a standard environment, just install the `requirements.pip` and run `./parse.py`
 
 The `parse.py` script has a couple of options:
 - `--out` [default=True] : Outputs csv to stdout. Useful for redirecting output. Redirect only stdout, since stderr has progress messages.
-- `--csv` [default=False] : Saves to 'dblp-orcids.csv'.
+- `--csv` [default=False] : Saves output to csv. Either 'by_orcid.csv' or 'by_alias.csv' according to below option.
+- `--orcid` : We gather by orcid, and list all alias for that orcid
+- `--alias` : We gather by alias, and list all orcids for that alias
 - `--no-download` [default=False] : Does not download DBLP XML files. Useful for development.
 
 **Note**: when running please have in mind that the DBLP XML is large (more than 2GB). Even though we tried to improve memory management while parsing, it still requires a considerable amount.
@@ -28,7 +33,7 @@ Here is a snippet to load the CSV into python pandas:
 from ast import literal_eval
 import pandas as pd
 
-dblp_info=pd.read_csv('dblp-orcids.csv', comment='#', encoding='utf-8',
+dblp_info=pd.read_csv('by_orcid.csv', comment='#', encoding='utf-8',
                 dtype={
                     # force dtypes: pandas with problems guessing
                     'acm_id': object,

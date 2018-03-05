@@ -19,11 +19,11 @@ parser = argparse.ArgumentParser()
 # group for either out or csv
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--out", action='store_true', default=True, help="Outputs csv to stdout. Useful for redirecting output.", required=False)
-group.add_argument("--csv", action='store_true', default=False, help="Saves to output to csv", required=False)
+group.add_argument("--csv", action='store_true', default=False, help="Saves output to csv", required=False)
 # group for either orcid or alias
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--orcid", action='store_true', default=False, help="We gather by orcid, and list all alias for that orcid", required=False)
-group.add_argument("--alias", action='store_true', default=False, help="We gather by orcid, and list all alias for that orcid", required=False)
+group.add_argument("--alias", action='store_true', default=False, help="We gather by alias, and list all orcids for that alias", required=False)
 # option for no download
 parser.add_argument("--no-download", action='store_true', default=False, help="Does not download DBLP XML files", required=False)
 args = vars(parser.parse_args())
