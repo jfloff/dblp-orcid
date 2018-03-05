@@ -98,7 +98,7 @@ def process_www(element):
         all_alias = set(element.xpath('author/text()'))
 
         info = {
-            'dblp_key': element.attrib['key'],
+            'dblp_key': set(element.attrib['key']),
             'affiliation': element.findtext("note[@type='affiliation']"),
             'orcid': None,
             'researcher_id': None,
@@ -111,7 +111,7 @@ def process_www(element):
         # finds info based on author urls
         for url in element.xpath("url/text()"):
             # some cleanup
-            url = url.strip("/")
+            url = url.strip().strip("/")
             # tries to find several standard information
             if 'orcid.org/' in url: info['orcid'] = url.rpartition('/')[-1]
             elif 'researcherid' in url: info['researcher_id'] = url.rpartition('/')[-1]
@@ -145,7 +145,9 @@ def info_by_orcid():
     for orcid, aliases in orcid_alias.items():
         # merges all alias_info
         info = {}
+        dblp_keys = set()
         for alias in aliases:
+            dblp_keys.update(alias_info[alias]['dblp_key'])
             if info:
                 info = alias_info[alias]
             else:
@@ -159,7 +161,8 @@ def info_by_orcid():
             alias_info[alias] = info
 
         # but we add all aliases to the final result
-        info['alias'] = aliases
+        info['alias'] = sorted(aliases)
+        info['dblp_key'] = sorted(dblp_keys)
         info['orcid'] = orcid
         final[orcid] = info
 
@@ -218,15 +221,16 @@ tmp_csv_fd.write('# PARSED ON ' + datetime.datetime.today().strftime('%Y-%m-%d')
 df.to_csv(tmp_csv_fd, index=False, encoding='utf-8')
 tmp_csv_fd.close()
 
+# just prints message, file already saved
+if args['csv']:
+    args['out'] = False
+    shutil.copy(tmp_csv_fd.name, OUTPUT_CSV_FILENAME)
+    print("Parsed info saved to: " + OUTPUT_CSV_FILENAME, file=sys.stderr)
+
 # defaults "cat"s the file
 if args['out']:
     with open(tmp_csv_fd.name) as f:
         for line in f: print(line, end="")
-
-# just prints message, file already saved
-if args['csv']:
-    shutil.copy(tmp_csv_fd.name, OUTPUT_CSV_FILENAME)
-    print("Parsed info saved to: " + OUTPUT_CSV_FILENAME, file=sys.stderr)
 
 # delete file
 os.remove(tmp_csv_fd.name)
