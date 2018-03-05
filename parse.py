@@ -98,7 +98,7 @@ def process_www(element):
         all_alias = set(element.xpath('author/text()'))
 
         info = {
-            'dblp_key': set(element.attrib['key']),
+            'dblp_key': set([element.attrib['key']]),
             'affiliation': element.findtext("note[@type='affiliation']"),
             'orcid': None,
             'researcher_id': None,
