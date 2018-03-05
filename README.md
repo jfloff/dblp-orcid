@@ -22,5 +22,27 @@ The image `jfloff/dblp-orcids` is already available through [Docker Hub](https:/
 docker build --rm -t jfloff/dblp-orcids .
 ```
 
+#### Read CSV
+Here is a snippet to load the CSV into python pandas:
+```python
+from ast import literal_eval
+import pandas as pd
+
+dblp_info=pd.read_csv('dblp-orcids.csv', comment='#', encoding='utf-8',
+                dtype={
+                    # force dtypes: pandas with problems guessing
+                    'acm_id': object,
+                    'scopus_id': object,
+                },
+                converters={
+                    # parse lists of alias and dblp_keys to python object
+                    'alias': lambda x: literal_eval(x),
+                    'dblp_key': lambda x: literal_eval(x),
+                },
+                # optional: set index to orcid
+                index_col='orcid')
+
+```
+
 ## License
 The code in this repository, unless otherwise noted, is MIT licensed. See the LICENSE file in this repository. When using this repository do not forget to acknowledge [DBLP](dblp.uni-trier.de).
