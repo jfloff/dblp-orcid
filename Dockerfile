@@ -11,9 +11,12 @@ RUN set -ex ;\
             ;\
     rm /var/cache/apk/*
 
-# copy application and run
+# copy just requirements so we cache this only despite any changes to parse.py or other files
+COPY requirements.pip /tmp/
+RUN pip --no-cache-dir install -r /tmp/requirements.pip
+
+# add application
 WORKDIR /home/dblp-orcids
 COPY . /home/dblp-orcids
-RUN pip --no-cache-dir install -r requirements.pip
-
-CMD ./parse.py
+ENTRYPOINT [ "./parse.py" ]
+CMD ["--out", "--orcid"]

@@ -16,8 +16,15 @@ import argparse
 # COMMAND LINE
 #
 parser = argparse.ArgumentParser()
-parser.add_argument("--out", action='store_true', default=True, help="Outputs csv to stdout. Useful for redirecting output.", required=False)
-parser.add_argument("--csv", action='store_true', default=False, help="Saves to 'dblp-orcids.csv'", required=False)
+# group for either out or csv
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--out", action='store_true', default=True, help="Outputs csv to stdout. Useful for redirecting output.", required=False)
+group.add_argument("--csv", action='store_true', default=False, help="Saves to output to csv", required=False)
+# group for either orcid or alias
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--orcid", action='store_true', default=False, help="We gather by orcid, and list all alias for that orcid", required=False)
+group.add_argument("--alias", action='store_true', default=False, help="We gather by orcid, and list all alias for that orcid", required=False)
+# option for no download
 parser.add_argument("--no-download", action='store_true', default=False, help="Does not download DBLP XML files", required=False)
 args = vars(parser.parse_args())
 
@@ -28,7 +35,8 @@ DBLP_XML_URL = 'http://dblp.org/xml/dblp.xml.gz'
 DBLP_XML_FILENAME = 'dblp.xml.gz'
 DBLP_DTD_URL = 'http://dblp.org/xml/dblp.dtd'
 DBLP_DTD_FILENAME = 'dblp.dtd'
-OUTPUT_CSV_FILENAME='dblp-orcids.csv'
+ORCID_OUTPUT_CSV_FILENAME = 'by_orcid.csv'
+ALIAS_OUTPUT_CSV_FILENAME = 'by_alias.csv'
 
 
 def progress_bar_hook(t):
@@ -95,10 +103,10 @@ def process_author(element):
 # processes www tags
 def process_www(element):
     if 'key' in element.attrib and element.attrib['key'].startswith("homepages"):
-        all_alias = set(element.xpath('author/text()'))
+        all_alias = set([a.strip() for a in element.xpath('author/text()')])
 
         info = {
-            'dblp_key': set([element.attrib['key']]),
+            'dblp_key': set([element.attrib['key'].strip()]),
             'affiliation': element.findtext("note[@type='affiliation']"),
             'orcid': None,
             'researcher_id': None,
@@ -135,7 +143,7 @@ def process_www(element):
         for alias in all_alias:
             alias_info[alias] = info
             # if exists saves on bimap and searches for more aliases
-            if info['orcid'] is not None:
+            if info['orcid'] and (info['orcid'] is not None):
                 add_bimap(alias, info['orcid'])
 
 
@@ -165,6 +173,21 @@ def info_by_orcid():
         info['dblp_key'] = sorted(dblp_keys)
         info['orcid'] = orcid
         final[orcid] = info
+
+    return final
+
+# merges info by orcid
+def info_by_alias():
+    final = {}
+    for alias, orcids in alias_orcid.items():
+        # gets info from that alias only
+        info = alias_info[alias]
+        # but store all orcids as a list
+        info['orcid'] = sorted(orcids)
+        info['dblp_key'] = next(iter(info['dblp_key']))
+        info['alias'] = alias
+
+        final[alias] = info
 
     return final
 
@@ -201,8 +224,27 @@ print("Started parsing...", file=sys.stderr)
 context = etree.iterparse(gzip.GzipFile(DBLP_XML_FILENAME), events=('end','end-ns'), tag=('author','www'), load_dtd=True, dtd_validation=True)
 fast_iter(context,process_element)
 
-# merges info by orcid
-final = info_by_orcid()
+# merges info by orcid or alias
+if args['orcid']:
+    final = info_by_orcid()
+    order = ['orcid','alias']
+    sort = 'orcid'
+    output_csv_filename = ORCID_OUTPUT_CSV_FILENAME
+if args['alias']:
+    final = info_by_alias()
+    order = ['alias','orcid']
+    sort = 'alias'
+    output_csv_filename = ALIAS_OUTPUT_CSV_FILENAME
+
+# export to csv
+df = pd.DataFrame(list(final.values()))
+order += ['dblp_key','affiliation','researcher_id','google_scholar_id','scopus_id','acm_id','homepage']
+df = df.reindex(columns=order).sort_values(sort)
+
+tmp_csv_fd = tempfile.NamedTemporaryFile(mode='w', delete=False)
+tmp_csv_fd.write('# PARSED ON ' + datetime.datetime.today().strftime('%Y-%m-%d') + '\n')
+df.to_csv(tmp_csv_fd, index=False, encoding='utf-8')
+tmp_csv_fd.close()
 print("Finished parsing!", file=sys.stderr)
 
 # remove files
@@ -211,21 +253,11 @@ if not args['no_download']:
     os.remove(DBLP_XML_FILENAME)
     print("Removed DBLP xml files.", file=sys.stderr)
 
-# export to csv
-df = pd.DataFrame(list(final.values()))
-order = ['orcid','alias','dblp_key','affiliation','researcher_id','google_scholar_id','scopus_id','acm_id','homepage']
-df = df.reindex(columns=order).sort_values('orcid')
-
-tmp_csv_fd = tempfile.NamedTemporaryFile(mode='w', delete=False)
-tmp_csv_fd.write('# PARSED ON ' + datetime.datetime.today().strftime('%Y-%m-%d') + '\n')
-df.to_csv(tmp_csv_fd, index=False, encoding='utf-8')
-tmp_csv_fd.close()
-
 # just prints message, file already saved
 if args['csv']:
     args['out'] = False
-    shutil.copy(tmp_csv_fd.name, OUTPUT_CSV_FILENAME)
-    print("Parsed info saved to: " + OUTPUT_CSV_FILENAME, file=sys.stderr)
+    shutil.copy(tmp_csv_fd.name, output_csv_filename)
+    print("Parsed info saved to: " + output_csv_filename, file=sys.stderr)
 
 # defaults "cat"s the file
 if args['out']:
