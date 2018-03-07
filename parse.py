@@ -7,10 +7,10 @@ import shutil
 import urllib.request
 from tqdm import tqdm
 from lxml import etree
-from lxml import html
 import pandas as pd
 import datetime
 import argparse
+import copy
 
 ##########################
 # COMMAND LINE
@@ -106,7 +106,7 @@ def process_www(element):
         all_alias = set([a.strip() for a in element.xpath('author/text()')])
 
         info = {
-            'dblp_key': set([element.attrib['key'].strip()]),
+            'dblp_key': set([element.attrib['key']]),
             'affiliation': element.findtext("note[@type='affiliation']"),
             'orcid': None,
             'researcher_id': None,
@@ -157,7 +157,8 @@ def info_by_orcid():
         for alias in aliases:
             dblp_keys.update(alias_info[alias]['dblp_key'])
             if info:
-                info = alias_info[alias]
+                # deep copy of the dict to avoid duplicates in the csv
+                info = copy.deepcopy(alias_info[alias])
             else:
                 # from running we found out that we might have
                 # different alias info for the same orcid hence
@@ -181,7 +182,8 @@ def info_by_alias():
     final = {}
     for alias, orcids in alias_orcid.items():
         # gets info from that alias only
-        info = alias_info[alias]
+        # deep copy of the dict to avoid duplicates in the csv
+        info = copy.deepcopy(alias_info[alias])
         # but store all orcids as a list
         info['orcid'] = sorted(orcids)
         info['dblp_key'] = next(iter(info['dblp_key']))
