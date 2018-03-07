@@ -33,9 +33,9 @@ Here is a snippet to load the CSV into python pandas:
 from ast import literal_eval
 import pandas as pd
 
-dblp_info=pd.read_csv('by_orcid.csv', comment='#', encoding='utf-8',
+orcid_info=pd.read_csv('by_orcid.csv', comment='#', encoding='utf-8',
                 dtype={
-                    # force dtypes: pandas with problems guessing
+                    # force dtypes: pandas with problems guessing types
                     'acm_id': object,
                     'scopus_id': object,
                 },
@@ -47,6 +47,18 @@ dblp_info=pd.read_csv('by_orcid.csv', comment='#', encoding='utf-8',
                 # optional: set index to orcid
                 index_col='orcid')
 
+alias_info=pd.read_csv('by_alias.csv', comment='#', encoding='utf-8',
+                dtype={
+                    # force dtypes: pandas with problems guessing types
+                    'acm_id': object,
+                    'scopus_id': object,
+                },
+                converters={
+                    # parse lists of orcids (there might be multiple)
+                    'orcid': lambda x: literal_eval(x),
+                },
+                # optional: set index to alias
+                index_col='alias')
 ```
 
 ## License
