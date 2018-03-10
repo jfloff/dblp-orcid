@@ -121,11 +121,16 @@ def process_www(element):
             # some cleanup
             url = url.strip().strip("/")
             # tries to find several standard information
-            if 'orcid.org/' in url: info['orcid'] = url.rpartition('/')[-1]
-            elif 'researcherid' in url: info['researcher_id'] = url.rpartition('/')[-1]
-            elif 'scholar.google' in url: info['google_scholar_id'] = url.rpartition("user=")[-1]
-            elif 'scopus' in url: info['scopus_id'] = url.rpartition("authorId=")[-1]
-            elif 'dl.acm.org/author_page' in url: info['acm_id'] = url.rpartition("id=")[-1]
+            if 'orcid.org/' in url:
+                info['orcid'] = 'https://orcid.org/' + url.rpartition('/')[-1]
+            elif 'researcherid' in url:
+                info['researcher_id'] = 'http://www.researcherid.com/rid/' + url.rpartition('/')[-1]
+            elif 'scholar.google' in url:
+                info['google_scholar_id'] = 'https://scholar.google.com/citations?user=' + url.rpartition("user=")[-1]
+            elif 'scopus' in url:
+                info['scopus_id'] = 'https://www.scopus.com/authid/detail.uri?authorId=' + url.rpartition("authorId=")[-1]
+            elif 'dl.acm.org/author_page' in url:
+                info['acm_id'] = 'https://dl.acm.org/author_page.cfm?id=' + url.rpartition("id=")[-1]
             # other not very relevant urls that we skip
             elif 'wikidata' in url: continue
             elif 'genealogy.ams.org' in url: continue
