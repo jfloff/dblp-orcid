@@ -94,7 +94,7 @@ def add_bimap(alias, orcid):
 def process_author(element):
     if 'orcid' in element.attrib:
         alias = element.text
-        orcid = element.attrib['orcid']
+        orcid = 'https://orcid.org/' + element.attrib['orcid']
 
         # inits bi-directional entries
         add_bimap(alias, orcid)
